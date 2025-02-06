@@ -1,0 +1,215 @@
+3
+SELECT COUNT(*) FROM hits;
+Time: 552.734 ms
+Time: 480.194 ms
+Time: 481.407 ms
+3
+SELECT COUNT(*) FROM hits WHERE AdvEngineID <> 0;
+Time: 2905.999 ms (00:02.906)
+Time: 420.477 ms
+Time: 413.969 ms
+3
+SELECT SUM(AdvEngineID), COUNT(*), AVG(ResolutionWidth) FROM hits;
+Time: 42276.165 ms (00:42.276)
+Time: 41099.919 ms (00:41.100)
+Time: 41134.953 ms (00:41.135)
+3
+SELECT AVG(UserID) FROM hits;
+Time: 4908.432 ms (00:04.908)
+Time: 918.607 ms
+Time: 911.893 ms
+3
+SELECT COUNT(DISTINCT UserID) FROM hits;
+Time: 5273.312 ms (00:05.273)
+Time: 5265.417 ms (00:05.265)
+Time: 5264.598 ms (00:05.265)
+3
+SELECT COUNT(DISTINCT SearchPhrase) FROM hits;
+Time: 6994.938 ms (00:06.995)
+Time: 5002.014 ms (00:05.002)
+Time: 4981.633 ms (00:04.982)
+3
+SELECT MIN(EventDate), MAX(EventDate) FROM hits;
+Time: 25.607 ms
+Time: 1.266 ms
+Time: 1.294 ms
+3
+SELECT AdvEngineID, COUNT(*) FROM hits WHERE AdvEngineID <> 0 GROUP BY AdvEngineID ORDER BY COUNT(*) DESC;
+Time: 442.105 ms
+Time: 413.219 ms
+Time: 412.783 ms
+3
+SELECT RegionID, COUNT(DISTINCT UserID) AS u FROM hits GROUP BY RegionID ORDER BY u DESC LIMIT 10;
+Time: 7755.110 ms (00:07.755)
+Time: 6410.222 ms (00:06.410)
+Time: 6539.792 ms (00:06.540)
+3
+SELECT RegionID, SUM(AdvEngineID), COUNT(*) AS c, AVG(ResolutionWidth), COUNT(DISTINCT UserID) FROM hits GROUP BY RegionID ORDER BY c DESC LIMIT 10;
+Time: 55847.372 ms (00:55.847)
+Time: 53410.318 ms (00:53.410)
+Time: 53879.045 ms (00:53.879)
+3
+SELECT MobilePhoneModel, COUNT(DISTINCT UserID) AS u FROM hits WHERE MobilePhoneModel <> '' GROUP BY MobilePhoneModel ORDER BY u DESC LIMIT 10;
+Time: 5626.486 ms (00:05.626)
+Time: 1435.009 ms (00:01.435)
+Time: 1432.001 ms (00:01.432)
+3
+SELECT MobilePhone, MobilePhoneModel, COUNT(DISTINCT UserID) AS u FROM hits WHERE MobilePhoneModel <> '' GROUP BY MobilePhone, MobilePhoneModel ORDER BY u DESC LIMIT 10;
+Time: 361142.281 ms (06:01.142)
+Time: 9364.394 ms (00:09.364)
+Time: 9223.089 ms (00:09.223)
+3
+SELECT SearchPhrase, COUNT(*) AS c FROM hits WHERE SearchPhrase <> '' GROUP BY SearchPhrase ORDER BY c DESC LIMIT 10;
+Time: 3887.209 ms (00:03.887)
+Time: 3338.824 ms (00:03.339)
+Time: 3282.178 ms (00:03.282)
+3
+SELECT SearchPhrase, COUNT(DISTINCT UserID) AS u FROM hits WHERE SearchPhrase <> '' GROUP BY SearchPhrase ORDER BY u DESC LIMIT 10;
+Time: 22084.722 ms (00:22.085)
+Time: 17334.501 ms (00:17.335)
+Time: 17427.365 ms (00:17.427)
+3
+SELECT SearchEngineID, SearchPhrase, COUNT(*) AS c FROM hits WHERE SearchPhrase <> '' GROUP BY SearchEngineID, SearchPhrase ORDER BY c DESC LIMIT 10;
+Time: 57378.901 ms (00:57.379)
+Time: 55839.849 ms (00:55.840)
+Time: 55953.788 ms (00:55.954)
+3
+SELECT UserID, COUNT(*) FROM hits GROUP BY UserID ORDER BY COUNT(*) DESC LIMIT 10;
+Time: 4600.669 ms (00:04.601)
+Time: 2839.425 ms (00:02.839)
+Time: 2825.744 ms (00:02.826)
+3
+SELECT UserID, SearchPhrase, COUNT(*) FROM hits GROUP BY UserID, SearchPhrase ORDER BY COUNT(*) DESC LIMIT 10;
+Time: 12154.872 ms (00:12.155)
+Time: 12085.035 ms (00:12.085)
+Time: 12086.503 ms (00:12.087)
+3
+SELECT UserID, SearchPhrase, COUNT(*) FROM hits GROUP BY UserID, SearchPhrase LIMIT 10;
+Time: 19.097 ms
+Time: 1.392 ms
+Time: 1.305 ms
+3
+SELECT UserID, extract(minute FROM EventTime) AS m, SearchPhrase, COUNT(*) FROM hits GROUP BY UserID, m, SearchPhrase ORDER BY COUNT(*) DESC LIMIT 10;
+Time: 290351.771 ms (04:50.352)
+Time: 226711.014 ms (03:46.711)
+Time: 282806.947 ms (04:42.807)
+3
+SELECT UserID FROM hits WHERE UserID = 435090932899640449;
+Time: 27.104 ms
+Time: 1.125 ms
+Time: 1.034 ms
+3
+SELECT COUNT(*) FROM hits WHERE URL LIKE '%google%';
+Time: 10107.158 ms (00:10.107)
+Time: 58.136 ms
+Time: 65.166 ms
+3
+SELECT SearchPhrase, MIN(URL), COUNT(*) AS c FROM hits WHERE URL LIKE '%google%' AND SearchPhrase <> '' GROUP BY SearchPhrase ORDER BY c DESC LIMIT 10;
+Time: 88.955 ms
+Time: 69.154 ms
+Time: 51.836 ms
+3
+SELECT SearchPhrase, MIN(URL), MIN(Title), COUNT(*) AS c, COUNT(DISTINCT UserID) FROM hits WHERE Title LIKE '%Google%' AND URL NOT LIKE '%.google.%' AND SearchPhrase <> '' GROUP BY SearchPhrase ORDER BY c DESC LIMIT 10;
+Time: 13381.753 ms (00:13.382)
+Time: 85.777 ms
+Time: 84.005 ms
+3
+SELECT * FROM hits WHERE URL LIKE '%google%' ORDER BY EventTime LIMIT 10;
+Time: 95.189 ms
+Time: 60.075 ms
+Time: 66.368 ms
+3
+SELECT SearchPhrase FROM hits WHERE SearchPhrase <> '' ORDER BY EventTime LIMIT 10;
+Time: 47.770 ms
+Time: 1.390 ms
+Time: 1.352 ms
+3
+SELECT SearchPhrase FROM hits WHERE SearchPhrase <> '' ORDER BY SearchPhrase LIMIT 10;
+Time: 20.398 ms
+Time: 1.194 ms
+Time: 1.159 ms
+3
+SELECT SearchPhrase FROM hits WHERE SearchPhrase <> '' ORDER BY EventTime, SearchPhrase LIMIT 10;
+Time: 23.784 ms
+Time: 1.524 ms
+Time: 1.472 ms
+3
+SELECT CounterID, AVG(length(URL)) AS l, COUNT(*) AS c FROM hits WHERE URL <> '' GROUP BY CounterID HAVING COUNT(*) > 100000 ORDER BY l DESC LIMIT 25;
+Time: 42662.957 ms (00:42.663)
+Time: 40341.192 ms (00:40.341)
+Time: 40472.745 ms (00:40.473)
+3
+SELECT REGEXP_REPLACE(Referer, '^https?://(?:www.)?([^/]+)/.*$', '1') AS k, AVG(length(Referer)) AS l, COUNT(*) AS c, MIN(Referer) FROM hits WHERE Referer <> '' GROUP BY k HAVING COUNT(*) > 100000 ORDER BY l DESC LIMIT 25;
+Time: 53301.537 ms (00:53.302)
+Time: 53135.738 ms (00:53.136)
+Time: 52616.519 ms (00:52.617)
+3
+SELECT SUM(ResolutionWidth), SUM(ResolutionWidth + 1), SUM(ResolutionWidth + 2), SUM(ResolutionWidth + 3), SUM(ResolutionWidth + 4), SUM(ResolutionWidth + 5), SUM(ResolutionWidth + 6), SUM(ResolutionWidth + 7), SUM(ResolutionWidth + 8), SUM(ResolutionWidth + 9), SUM(ResolutionWidth + 10), SUM(ResolutionWidth + 11), SUM(ResolutionWidth + 12), SUM(ResolutionWidth + 13), SUM(ResolutionWidth + 14), SUM(ResolutionWidth + 15), SUM(ResolutionWidth + 16), SUM(ResolutionWidth + 17), SUM(ResolutionWidth + 18), SUM(ResolutionWidth + 19), SUM(ResolutionWidth + 20), SUM(ResolutionWidth + 21), SUM(ResolutionWidth + 22), SUM(ResolutionWidth + 23), SUM(ResolutionWidth + 24), SUM(ResolutionWidth + 25), SUM(ResolutionWidth + 26), SUM(ResolutionWidth + 27), SUM(ResolutionWidth + 28), SUM(ResolutionWidth + 29), SUM(ResolutionWidth + 30), SUM(ResolutionWidth + 31), SUM(ResolutionWidth + 32), SUM(ResolutionWidth + 33), SUM(ResolutionWidth + 34), SUM(ResolutionWidth + 35), SUM(ResolutionWidth + 36), SUM(ResolutionWidth + 37), SUM(ResolutionWidth + 38), SUM(ResolutionWidth + 39), SUM(ResolutionWidth + 40), SUM(ResolutionWidth + 41), SUM(ResolutionWidth + 42), SUM(ResolutionWidth + 43), SUM(ResolutionWidth + 44), SUM(ResolutionWidth + 45), SUM(ResolutionWidth + 46), SUM(ResolutionWidth + 47), SUM(ResolutionWidth + 48), SUM(ResolutionWidth + 49), SUM(ResolutionWidth + 50), SUM(ResolutionWidth + 51), SUM(ResolutionWidth + 52), SUM(ResolutionWidth + 53), SUM(ResolutionWidth + 54), SUM(ResolutionWidth + 55), SUM(ResolutionWidth + 56), SUM(ResolutionWidth + 57), SUM(ResolutionWidth + 58), SUM(ResolutionWidth + 59), SUM(ResolutionWidth + 60), SUM(ResolutionWidth + 61), SUM(ResolutionWidth + 62), SUM(ResolutionWidth + 63), SUM(ResolutionWidth + 64), SUM(ResolutionWidth + 65), SUM(ResolutionWidth + 66), SUM(ResolutionWidth + 67), SUM(ResolutionWidth + 68), SUM(ResolutionWidth + 69), SUM(ResolutionWidth + 70), SUM(ResolutionWidth + 71), SUM(ResolutionWidth + 72), SUM(ResolutionWidth + 73), SUM(ResolutionWidth + 74), SUM(ResolutionWidth + 75), SUM(ResolutionWidth + 76), SUM(ResolutionWidth + 77), SUM(ResolutionWidth + 78), SUM(ResolutionWidth + 79), SUM(ResolutionWidth + 80), SUM(ResolutionWidth + 81), SUM(ResolutionWidth + 82), SUM(ResolutionWidth + 83), SUM(ResolutionWidth + 84), SUM(ResolutionWidth + 85), SUM(ResolutionWidth + 86), SUM(ResolutionWidth + 87), SUM(ResolutionWidth + 88), SUM(ResolutionWidth + 89) FROM hits;
+Time: 23645.034 ms (00:23.645)
+Time: 8417.133 ms (00:08.417)
+Time: 8293.756 ms (00:08.294)
+3
+SELECT SearchEngineID, ClientIP, COUNT(*) AS c, SUM(IsRefresh), AVG(ResolutionWidth) FROM hits WHERE SearchPhrase <> '' GROUP BY SearchEngineID, ClientIP ORDER BY c DESC LIMIT 10;
+Time: 45497.640 ms (00:45.498)
+Time: 43619.313 ms (00:43.619)
+Time: 44150.364 ms (00:44.150)
+3
+SELECT WatchID, ClientIP, COUNT(*) AS c, SUM(IsRefresh), AVG(ResolutionWidth) FROM hits WHERE SearchPhrase <> '' GROUP BY WatchID, ClientIP ORDER BY c DESC LIMIT 10;
+Time: 47526.608 ms (00:47.527)
+Time: 44494.346 ms (00:44.494)
+Time: 45679.589 ms (00:45.680)
+3
+SELECT WatchID, ClientIP, COUNT(*) AS c, SUM(IsRefresh), AVG(ResolutionWidth) FROM hits GROUP BY WatchID, ClientIP ORDER BY c DESC LIMIT 10;
+Time: 82596.136 ms (01:22.596)
+Time: 81360.971 ms (01:21.361)
+Time: 81522.796 ms (01:21.523)
+3
+SELECT URL, COUNT(*) AS c FROM hits GROUP BY URL ORDER BY c DESC LIMIT 10;
+Time: 140696.038 ms (02:20.696)
+Time: 140879.726 ms (02:20.880)
+Time: 141315.775 ms (02:21.316)
+3
+SELECT 1, URL, COUNT(*) AS c FROM hits GROUP BY 1, URL ORDER BY c DESC LIMIT 10;
+Time: 147249.913 ms (02:27.250)
+Time: 129169.922 ms (02:09.170)
+Time: 141811.503 ms (02:21.812)
+3
+SELECT ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3, COUNT(*) AS c FROM hits GROUP BY ClientIP, ClientIP - 1, ClientIP - 2, ClientIP - 3 ORDER BY c DESC LIMIT 10;
+Time: 21743.667 ms (00:21.744)
+Time: 13216.834 ms (00:13.217)
+Time: 13231.360 ms (00:13.231)
+3
+SELECT URL, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND DontCountHits = 0 AND IsRefresh = 0 AND URL <> '' GROUP BY URL ORDER BY PageViews DESC LIMIT 10;
+Time: 2028.435 ms (00:02.028)
+Time: 1415.569 ms (00:01.416)
+Time: 1468.929 ms (00:01.469)
+3
+SELECT Title, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND DontCountHits = 0 AND IsRefresh = 0 AND Title <> '' GROUP BY Title ORDER BY PageViews DESC LIMIT 10;
+Time: 273.968 ms
+Time: 227.607 ms
+Time: 230.306 ms
+3
+SELECT URL, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND IsRefresh = 0 AND IsLink <> 0 AND IsDownload = 0 GROUP BY URL ORDER BY PageViews DESC LIMIT 10 OFFSET 1000;
+Time: 187.027 ms
+Time: 136.451 ms
+Time: 136.769 ms
+3
+SELECT TraficSourceID, SearchEngineID, AdvEngineID, CASE WHEN (SearchEngineID = 0 AND AdvEngineID = 0) THEN Referer ELSE '' END AS Src, URL AS Dst, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND IsRefresh = 0 GROUP BY TraficSourceID, SearchEngineID, AdvEngineID, Src, Dst ORDER BY PageViews DESC LIMIT 10 OFFSET 1000;
+Time: 2077.341 ms (00:02.077)
+Time: 2044.763 ms (00:02.045)
+Time: 2022.002 ms (00:02.022)
+3
+SELECT URLHash, EventDate, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND IsRefresh = 0 AND TraficSourceID IN (-1, 6) AND RefererHash = 3594120000172545465 GROUP BY URLHash, EventDate ORDER BY PageViews DESC LIMIT 10 OFFSET 100;
+Time: 162.292 ms
+Time: 113.749 ms
+Time: 114.128 ms
+3
+SELECT WindowClientWidth, WindowClientHeight, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-01' AND EventDate <= '2013-07-31' AND IsRefresh = 0 AND DontCountHits = 0 AND URLHash = 2868770270353813622 GROUP BY WindowClientWidth, WindowClientHeight ORDER BY PageViews DESC LIMIT 10 OFFSET 10000;
+Time: 165.525 ms
+Time: 111.070 ms
+Time: 114.670 ms
+3
+SELECT DATE_TRUNC('minute', EventTime) AS M, COUNT(*) AS PageViews FROM hits WHERE CounterID = 62 AND EventDate >= '2013-07-14' AND EventDate <= '2013-07-15' AND IsRefresh = 0 AND DontCountHits = 0 GROUP BY DATE_TRUNC('minute', EventTime) ORDER BY DATE_TRUNC('minute', EventTime) LIMIT 10 OFFSET 1000;
+Time: 733.031 ms
+Time: 389.145 ms
+Time: 369.517 ms

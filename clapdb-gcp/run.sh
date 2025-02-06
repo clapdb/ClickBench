@@ -4,9 +4,10 @@ TRIES=3
 
 QUERY_NUM=1
 echo "query_num,try,execution_time" >result.csv
-cat queries.sql | while read -r query; do
-    ./clap_node --config ./stdb.toml &>/tmp/null &
+    ./clap_node --kernel-page-cache 1 --config ./stdb.toml &>/tmp/null &
     sleep 1
+cat queries.sql | while read -r query; do
+
 
     # echo "${QUERY_NUM} ${query}"
     echo -n "["
@@ -23,5 +24,5 @@ cat queries.sql | while read -r query; do
     done
     echo "],"
     QUERY_NUM=$((QUERY_NUM + 1))
-    pkill clap_node
 done
+    pkill clap_node
