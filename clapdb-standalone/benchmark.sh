@@ -88,13 +88,24 @@ trap cleanup EXIT
 export PGPASSWORD="$PASSWORD"
 PSQL_CMD="psql -h $CLAPDB_HOST -p $CLAPDB_PORT -U $USERNAME -d $DATABASE"
 
+# Wait for server to be ready
+echo "Waiting for server to be ready..."
+for i in {1..30}; do
+    if $PSQL_CMD -c "SELECT 1" &>/dev/null; then
+        echo "Server is ready"
+        break
+    fi
+    sleep 1
+done
+
 # Create table
 echo "Creating hits table..."
 $PSQL_CMD -f create.sql
 
-# Load data
+# Load data using server-side COPY (server reads the file directly)
 echo "Loading data from $HITS_TSV..."
-$PSQL_CMD -c "COPY hits FROM '$HITS_TSV' DELIMITER E'\t' CSV;"
+echo "This may take several minutes for 100M rows..."
+time $PSQL_CMD -c "COPY hits FROM '$HITS_TSV' DELIMITER E'\t' CSV;"
 
 # Verify data loaded
 echo "Verifying data..."
