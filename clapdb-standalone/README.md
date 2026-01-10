@@ -4,15 +4,22 @@ Run ClickBench benchmark on ClapDB standalone server.
 
 ## Prerequisites
 
-- ClapDB built with `clapdb_standalone` target
+- ClapDB built with `clapdb_standalone` target in **release mode**
 - `psql` PostgreSQL client
 - `wget`, `gzip` for downloading data
+
+## Build ClapDB (Release Mode)
+
+```bash
+cmake --preset release
+cmake --build --preset release
+```
 
 ## Usage
 
 ```bash
-# Set the path to your ClapDB build directory
-export CLAPDB_BUILD_DIR=/path/to/clapdb/build.dev
+# Set the path to your ClapDB release build directory
+export CLAPDB_BUILD_DIR=/path/to/clapdb/build.release
 
 # Run the full benchmark
 ./benchmark.sh

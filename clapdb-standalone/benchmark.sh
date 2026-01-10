@@ -11,12 +11,12 @@ CLAPDB_PORT="${CLAPDB_PORT:-8888}"
 CLAPDB_HOST="${CLAPDB_HOST:-localhost}"
 CLAPDB_DATABASE="${CLAPDB_DATABASE:-clickbench}"
 
-# Path to clapdb build directory (set this or pass as env)
+# Path to clapdb release build directory (set this or pass as env)
 CLAPDB_BUILD_DIR="${CLAPDB_BUILD_DIR:-}"
 
 if [[ -z "$CLAPDB_BUILD_DIR" ]]; then
-    echo "Error: CLAPDB_BUILD_DIR must be set to the clapdb build directory"
-    echo "Example: CLAPDB_BUILD_DIR=/path/to/clapdb/build.dev ./benchmark.sh"
+    echo "Error: CLAPDB_BUILD_DIR must be set to the clapdb release build directory"
+    echo "Example: CLAPDB_BUILD_DIR=/path/to/clapdb/build.release ./benchmark.sh"
     exit 1
 fi
 
