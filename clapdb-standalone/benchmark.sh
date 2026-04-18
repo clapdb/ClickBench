@@ -123,7 +123,8 @@ if [[ "${CLEAN_RUN_DIR:-0}" == "1" ]]; then
         "${RUN_DIR}/FST_ROOT" \
         "${RUN_DIR}/SEGMENT_ROOT" \
         "${RUN_DIR}/DEL_MARKER_ROOT" \
-        "${RUN_DIR}/WAL_ROOT"
+        "${RUN_DIR}/WAL_ROOT" \
+        "${RUN_DIR}/.hits_loaded"
 fi
 
 # ── Start server (auto-bootstraps the empty data dir via --init-*) ─
@@ -158,8 +159,21 @@ start_server() {
 
 stop_server() {
     if [[ -n "${SERVER_PID:-}" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
+        local shutdown_timeout=10
+        local waited=0
         echo "Stopping clapdb_standalone (pid $SERVER_PID)..."
         kill "$SERVER_PID" 2>/dev/null || true
+        # Bounded wait: if the server ignores SIGTERM, escalate to SIGKILL so
+        # neither the benchmark nor the EXIT trap can hang indefinitely.
+        while kill -0 "$SERVER_PID" 2>/dev/null; do
+            if (( waited >= shutdown_timeout )); then
+                echo "Warning: clapdb_standalone (pid $SERVER_PID) did not stop within ${shutdown_timeout}s; sending SIGKILL." >&2
+                kill -9 "$SERVER_PID" 2>/dev/null || true
+                break
+            fi
+            sleep 1
+            waited=$((waited + 1))
+        done
         wait "$SERVER_PID" 2>/dev/null || true
     fi
     SERVER_PID=""
@@ -181,29 +195,38 @@ done
 "${PSQL[@]}" -c "SELECT 1" >/dev/null
 
 # ── Create table + load data ──────────────────────────────────
-# Skip create/load on reruns when the `hits` table already exists in the
-# catalog. Probe pg_tables instead of the table itself: it's an O(1) catalog
-# lookup, no row scan, and therefore doesn't warm storage caches before the
-# cold-cache restart below. We treat table presence as "data loaded" because
-# the only code path that creates the table here is the COPY branch, which
-# only commits after the load completes.
+# Reuse existing data only when (a) the `hits` table is present in the catalog
+# AND (b) a local completion marker shows the last load actually finished.
+# Probing pg_tables is an O(1) catalog lookup (no row scan, no cache warming
+# before the cold-cache restart below). Table presence alone is insufficient:
+# a prior run may have created `hits` and then died mid-COPY, leaving the
+# table empty/partial.
+HITS_LOAD_MARKER="${RUN_DIR}/.hits_loaded"
 table_exists=$("${PSQL[@]}" -tAXc \
     "SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'hits' LIMIT 1;" 2>/dev/null || echo "")
-if [[ -z "$table_exists" ]]; then
-    echo "Creating hits table..."
-    "${PSQL[@]}" -f "${SCRIPT_DIR}/create.sql"
-
-    echo "Loading $HITS_TSV (this takes a while for 100M rows)..."
-    # Use client-side \copy so HITS_TSV is read by the local psql process
-    # running this benchmark script. psql variable substitution does not
-    # expand inside \copy, so interpolate the path at the shell level.
-    # Use PostgreSQL text format (default) to match the ClickBench TSV
-    # layout: it honours \N as NULL and avoids the CSV
-    # quoting/escape differences that other Postgres-wire drivers in this
-    # repo already side-step.
-    time "${PSQL[@]}" -c "\\copy hits FROM '${HITS_TSV}' WITH (FORMAT text, DELIMITER E'\t');"
-else
+if [[ -n "$table_exists" && -f "$HITS_LOAD_MARKER" ]]; then
     echo "Reusing existing hits table; set CLEAN_RUN_DIR=1 to force reload."
+else
+    rm -f "$HITS_LOAD_MARKER"
+
+    if [[ -n "$table_exists" ]]; then
+        echo "Found hits table without a successful-load marker; dropping and reloading..."
+        "${PSQL[@]}" -c "DROP TABLE IF EXISTS public.hits;"
+    fi
+    echo "Creating hits table and loading $HITS_TSV (this takes a while for 100M rows)..."
+    # Use client-side \copy so HITS_TSV is read by the local psql process
+    # running this benchmark script. Run create.sql and \copy in the same
+    # psql invocation under --single-transaction so a failed load does not
+    # leave a half-populated `hits` behind. psql variable substitution does
+    # not expand inside \copy, so interpolate the path at the shell level.
+    # Use PostgreSQL text format (default) to match the ClickBench TSV
+    # layout: it honours \N as NULL and avoids the CSV quoting/escape
+    # differences that other Postgres-wire drivers in this repo already
+    # side-step.
+    time "${PSQL[@]}" --single-transaction \
+        -f "${SCRIPT_DIR}/create.sql" \
+        -c "\\copy hits FROM '${HITS_TSV}' WITH (FORMAT text, DELIMITER E'\t');"
+    : > "$HITS_LOAD_MARKER"
 fi
 
 # ── Restart for cold cache ────────────────────────────────────

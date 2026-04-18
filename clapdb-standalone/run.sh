@@ -22,35 +22,38 @@ while read -r query; do
         # Run query and extract timing
         # psql with \timing returns "Time: XXX.XXX ms"
         START_TIME=$(date +%s.%N)
-        OUTPUT=$(psql -h "$CLAPDB_HOST" -p "$CLAPDB_PORT" -U "$USERNAME" -d "$CLAPDB_DATABASE" \
+        # -X skips ~/.psqlrc for reproducibility; -v ON_ERROR_STOP=1 makes
+        # server-side SQL errors surface as a non-zero psql exit status so we
+        # don't have to scrape OUTPUT for "ERROR"/"FATAL" substrings (which
+        # can also appear inside legitimate result rows).
+        OUTPUT=$(psql -X -v ON_ERROR_STOP=1 \
+            -h "$CLAPDB_HOST" -p "$CLAPDB_PORT" -U "$USERNAME" -d "$CLAPDB_DATABASE" \
             -c "\\timing" -c "$query" 2>&1)
         PSQL_STATUS=$?
         END_TIME=$(date +%s.%N)
 
         RES=""
         if [[ $PSQL_STATUS -eq 0 ]]; then
-            # Try to extract time from psql output. grep -oE + sed keeps this
-            # portable (avoids PCRE \K, which needs -P and isn't available on
-            # e.g. BusyBox grep).
-            TIME_MS=$(echo "$OUTPUT" \
-                | grep -oE 'Time: [0-9]+\.[0-9]+ ms' \
-                | tail -1 \
-                | sed -E 's/^Time: ([0-9]+\.[0-9]+) ms$/\1/')
-
-            if [[ -n "$TIME_MS" ]]; then
-                # Convert ms to seconds
-                RES=$(echo "scale=3; $TIME_MS / 1000" | bc)
-            else
-                # Fallback: calculate from wall clock time
-                RES=$(echo "scale=3; $END_TIME - $START_TIME" | bc)
+            # psql \timing prints either "Time: <n> ms" or "Time: <n> s".
+            # grep -oE + sed keeps this portable (avoids PCRE \K, which needs
+            # -P and isn't available on BusyBox grep).
+            TIMING_LINE=$(echo "$OUTPUT" \
+                | grep -oE 'Time: [0-9]+(\.[0-9]+)? (ms|s)' \
+                | tail -1)
+            if [[ -n "$TIMING_LINE" ]]; then
+                TIME_VALUE=$(echo "$TIMING_LINE" \
+                    | sed -E 's/^Time: ([0-9]+(\.[0-9]+)?) (ms|s)$/\1/')
+                TIME_UNIT=$(echo "$TIMING_LINE" \
+                    | sed -E 's/^Time: ([0-9]+(\.[0-9]+)?) (ms|s)$/\3/')
+                if [[ "$TIME_UNIT" == "ms" ]]; then
+                    RES=$(echo "scale=3; $TIME_VALUE / 1000" | bc)
+                else
+                    RES=$(echo "scale=3; $TIME_VALUE / 1" | bc)
+                fi
             fi
         fi
 
-        # Treat any non-zero psql exit, server-side ERROR/FATAL, or psql's
-        # own connection/auth diagnostics as a failed attempt — otherwise
-        # wall-clock fallback records dead connections as successful timings.
-        if [[ $PSQL_STATUS -eq 0 && -n "$RES" && "$OUTPUT" != *"ERROR"* \
-              && "$OUTPUT" != *"FATAL"* && "$OUTPUT" != *"psql: error:"* ]]; then
+        if [[ $PSQL_STATUS -eq 0 && -n "$RES" ]]; then
             echo -n "${RES}"
             echo "${QUERY_NUM},${i},${RES}" >> result.csv
         else
