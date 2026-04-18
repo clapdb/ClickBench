@@ -192,7 +192,11 @@ if [[ -z "$existing_rows" || "$existing_rows" == "0" ]]; then
     # Use client-side \copy so HITS_TSV is read by the local psql process
     # running this benchmark script. psql variable substitution does not
     # expand inside \copy, so interpolate the path at the shell level.
-    time "${PSQL[@]}" -c "\\copy hits FROM '${HITS_TSV}' DELIMITER E'\t' CSV;"
+    # Use PostgreSQL text format (default) to match the ClickBench TSV
+    # layout: it honours \N as NULL and avoids the CSV
+    # quoting/escape differences that other Postgres-wire drivers in this
+    # repo already side-step.
+    time "${PSQL[@]}" -c "\\copy hits FROM '${HITS_TSV}' WITH (FORMAT text, DELIMITER E'\t');"
 else
     echo "Reusing existing hits table ($existing_rows rows); set CLEAN_RUN_DIR=1 to force reload."
 fi
