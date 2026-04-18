@@ -10,15 +10,17 @@
 #
 # Optional env:
 #   DATA_DIR           Dir holding hits.tsv[.gz]          (default: /data/apps)
+#   RUN_DIR            Working directory for data/logs    (default: ./.run)
+#   CLEAN_RUN_DIR      Set to 1 to wipe RUN_DIR before    (default: 0)
+#                      launch (forces a full reload)
 #   CLAPDB_HOST        Server bind / connect host         (default: 127.0.0.1)
 #   CLAPDB_PORT        PostgreSQL wire port               (default: 8888)
-#   CLAPDB_DATABASE    Database name                      (default: clickbench)
-#   CLAPDB_TENANT      Tenant name                        (default: default)
-#   CLAPDB_USER        Superuser name                     (default: admin)
-#   CLAPDB_PASSWORD    Superuser password                 (default: admin)
+#   CLAPDB_DATABASE    Database name (--init-database)    (default: clickbench)
+#   CLAPDB_TENANT      Tenant name (--init-tenant)        (default: default)
+#   CLAPDB_USER        Superuser name (--init-user)       (default: admin)
+#   CLAPDB_PASSWORD    Superuser password (--init-passwd) (default: admin)
 #   CLAPDB_CPUSET      seastar --cpuset                   (default: 0-3)
 #   CLAPDB_MEMORY      seastar --memory                   (default: 16G)
-#   RUN_DIR            Working directory for data/logs    (default: ./.run)
 
 set -euo pipefail
 
@@ -105,26 +107,31 @@ port = 0
 port = 0
 EOF
 
-echo "Cleaning previous data directory..."
-rm -rf \
-    "${RUN_DIR}/SCHEMA_ROOT" \
-    "${RUN_DIR}/FST_ROOT" \
-    "${RUN_DIR}/SEGMENT_ROOT" \
-    "${RUN_DIR}/DEL_MARKER_ROOT" \
-    "${RUN_DIR}/WAL_ROOT"
+# Opt-in full wipe: set CLEAN_RUN_DIR=1 to force a fresh load. Default is to
+# keep existing data so reruns against the same RUN_DIR skip the COPY and just
+# re-run the query suite.
+if [[ "${CLEAN_RUN_DIR:-0}" == "1" ]]; then
+    echo "CLEAN_RUN_DIR=1: wiping previous data roots under ${RUN_DIR}..."
+    rm -rf \
+        "${RUN_DIR}/SCHEMA_ROOT" \
+        "${RUN_DIR}/FST_ROOT" \
+        "${RUN_DIR}/SEGMENT_ROOT" \
+        "${RUN_DIR}/DEL_MARKER_ROOT" \
+        "${RUN_DIR}/WAL_ROOT"
+fi
 
 # ── Start server (auto-bootstraps the empty data dir via --init-*) ─
 SERVER_PID=""
 SERVER_LOG="${RUN_DIR}/clapdb_standalone.log"
 
 start_server() {
-    local init_args=()
-    # Only pass --init-* on first launch; once tenant.json exists they are ignored anyway
-    # but we keep them for idempotency of the script.
-    init_args+=(--init-tenant "$CLAPDB_TENANT"
-                --init-database "$CLAPDB_DATABASE"
-                --init-user "$CLAPDB_USER"
-                --init-password "$CLAPDB_PASSWORD")
+    # --init-* flags are applied only on first launch: clapdb_standalone checks
+    # tenant.json before running the bootstrap path, so passing them every time
+    # is idempotent (no-op once the data dir exists).
+    local init_args=(--init-tenant "$CLAPDB_TENANT"
+                     --init-database "$CLAPDB_DATABASE"
+                     --init-user "$CLAPDB_USER"
+                     --init-password "$CLAPDB_PASSWORD")
     echo "Starting clapdb_standalone (log: $SERVER_LOG)..."
     "$CLAPDB_STANDALONE" \
         --config "$STDB_TOML" \
@@ -168,11 +175,21 @@ done
 "${PSQL[@]}" -c "SELECT 1" >/dev/null
 
 # ── Create table + load data ──────────────────────────────────
-echo "Creating hits table..."
-"${PSQL[@]}" -f "${SCRIPT_DIR}/create.sql"
+# Skip create/load on reruns: if hits already exists with data, reuse it.
+existing_rows=$("${PSQL[@]}" -tAXc \
+    "SELECT COALESCE((SELECT COUNT(*) FROM hits), 0);" 2>/dev/null || echo "")
+if [[ -z "$existing_rows" || "$existing_rows" == "0" ]]; then
+    echo "Creating hits table..."
+    "${PSQL[@]}" -f "${SCRIPT_DIR}/create.sql"
 
-echo "Loading $HITS_TSV (this takes a while for 100M rows)..."
-time "${PSQL[@]}" -c "COPY hits FROM '$HITS_TSV' DELIMITER E'\t' CSV;"
+    echo "Loading $HITS_TSV (this takes a while for 100M rows)..."
+    # Client-side \copy so HITS_TSV is read on the benchmark driver host even
+    # when CLAPDB_HOST points at a remote server. psql variable substitution
+    # doesn't expand inside \copy, so interpolate the path at the shell level.
+    time "${PSQL[@]}" -c "\\copy hits FROM '${HITS_TSV}' DELIMITER E'\t' CSV;"
+else
+    echo "Reusing existing hits table ($existing_rows rows); set CLEAN_RUN_DIR=1 to force reload."
+fi
 
 echo "Row count:"
 "${PSQL[@]}" -c "SELECT COUNT(*) FROM hits;"
