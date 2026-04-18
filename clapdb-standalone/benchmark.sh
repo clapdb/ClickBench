@@ -209,6 +209,11 @@ for _ in $(seq 1 60); do
     "${PSQL[@]}" -c "SELECT 1" >/dev/null 2>&1 && break
     sleep 1
 done
+if ! "${PSQL[@]}" -c "SELECT 1" >/dev/null 2>&1; then
+    echo "Error: server did not become ready after cold-cache restart. See $SERVER_LOG" >&2
+    tail -40 "$SERVER_LOG" >&2 || true
+    exit 1
+fi
 
 # ── Run queries ───────────────────────────────────────────────
 echo "Running benchmark queries..."
