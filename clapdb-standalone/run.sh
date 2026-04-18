@@ -55,10 +55,14 @@ while read -r query; do
                 TIME_UNIT=$(echo "$TIMING_LINE" \
                     | sed -E 's/^Time: ([0-9]+(\.[0-9]+)?) (ms|s)$/\3/')
                 if [[ "$TIME_UNIT" == "ms" ]]; then
-                    RES=$(echo "scale=3; $TIME_VALUE / 1000" | bc)
+                    RAW_SECONDS=$(echo "scale=3; $TIME_VALUE / 1000" | bc)
                 else
-                    RES=$(echo "scale=3; $TIME_VALUE / 1" | bc)
+                    RAW_SECONDS=$(echo "scale=3; $TIME_VALUE / 1" | bc)
                 fi
+                # Reformat with printf so output is always 0.NNN (bc drops
+                # the leading zero for <1s values, which breaks result.json
+                # and looks awkward in result.csv).
+                RES=$(printf '%.3f' "$RAW_SECONDS")
             fi
         fi
 
