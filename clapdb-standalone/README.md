@@ -39,7 +39,8 @@ Environment variables:
 | `DATA_DIR` | `/data/apps` | Directory where `hits.tsv[.gz]` is stored |
 | `RUN_DIR` | `./.run` | Scratch directory for config, data roots, logs |
 | `CLEAN_RUN_DIR` | `0` | Set to `1` to wipe `RUN_DIR` data roots before launch |
-| `CLAPDB_HOST` | `127.0.0.1` | Server bind / connect host |
+| `CLAPDB_HOST` | `127.0.0.1` | psql `-h` (client connect address) |
+| `CLAPDB_BIND_ADDRESS` | `$CLAPDB_HOST` | Server `--address` (bind). Override when you want the server reachable from other hosts (e.g. `0.0.0.0`); set `CLAPDB_HOST` to a routable address in that case. |
 | `CLAPDB_PORT` | `8888` | PostgreSQL wire port |
 | `CLAPDB_DATABASE` | `clickbench` | Database name (forwarded as `--init-database`) |
 | `CLAPDB_TENANT` | `default` | Tenant name (forwarded as `--init-tenant`) |

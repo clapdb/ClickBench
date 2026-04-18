@@ -13,14 +13,15 @@
 #   RUN_DIR            Working directory for data/logs    (default: ./.run)
 #   CLEAN_RUN_DIR      Set to 1 to wipe RUN_DIR before    (default: 0)
 #                      launch (forces a full reload)
-#   CLAPDB_HOST        Server bind / connect host         (default: 127.0.0.1)
-#   CLAPDB_PORT        PostgreSQL wire port               (default: 8888)
-#   CLAPDB_DATABASE    Database name (--init-database)    (default: clickbench)
-#   CLAPDB_TENANT      Tenant name (--init-tenant)        (default: default)
-#   CLAPDB_USER        Superuser name (--init-user)       (default: admin)
-#   CLAPDB_PASSWORD    Superuser password (--init-passwd) (default: admin)
-#   CLAPDB_CPUSET      seastar --cpuset                   (default: 0-3)
-#   CLAPDB_MEMORY      seastar --memory                   (default: 16G)
+#   CLAPDB_BIND_ADDRESS  Server --address (bind)          (default: 127.0.0.1)
+#   CLAPDB_HOST          psql -h (client connect)         (default: 127.0.0.1)
+#   CLAPDB_PORT          PostgreSQL wire port             (default: 8888)
+#   CLAPDB_DATABASE      Database name (--init-database)  (default: clickbench)
+#   CLAPDB_TENANT        Tenant name (--init-tenant)      (default: default)
+#   CLAPDB_USER          Superuser name (--init-user)     (default: admin)
+#   CLAPDB_PASSWORD      Superuser password (--init-password) (default: admin)
+#   CLAPDB_CPUSET        seastar --cpuset                 (default: 0-3)
+#   CLAPDB_MEMORY        seastar --memory                 (default: 16G)
 
 set -euo pipefail
 
@@ -30,6 +31,11 @@ cd "$SCRIPT_DIR"
 # ── Configuration ──────────────────────────────────────────────
 DATA_DIR="${DATA_DIR:-/data/apps}"
 CLAPDB_HOST="${CLAPDB_HOST:-127.0.0.1}"
+# Bind address for the server — defaults to CLAPDB_HOST so the simple local
+# case Just Works. Override with 0.0.0.0 (or an NIC address) when you want
+# the server reachable from other hosts; psql will still connect via
+# CLAPDB_HOST, so set that to a routable address in that case too.
+CLAPDB_BIND_ADDRESS="${CLAPDB_BIND_ADDRESS:-$CLAPDB_HOST}"
 CLAPDB_PORT="${CLAPDB_PORT:-8888}"
 CLAPDB_DATABASE="${CLAPDB_DATABASE:-clickbench}"
 CLAPDB_TENANT="${CLAPDB_TENANT:-default}"
@@ -137,7 +143,7 @@ start_server() {
         --config "$STDB_TOML" \
         --cpuset "$CLAPDB_CPUSET" \
         --memory "$CLAPDB_MEMORY" \
-        --address "$CLAPDB_HOST" \
+        --address "$CLAPDB_BIND_ADDRESS" \
         --port "$CLAPDB_PORT" \
         "${init_args[@]}" \
         >"$SERVER_LOG" 2>&1 &
@@ -183,9 +189,9 @@ if [[ -z "$existing_rows" || "$existing_rows" == "0" ]]; then
     "${PSQL[@]}" -f "${SCRIPT_DIR}/create.sql"
 
     echo "Loading $HITS_TSV (this takes a while for 100M rows)..."
-    # Client-side \copy so HITS_TSV is read on the benchmark driver host even
-    # when CLAPDB_HOST points at a remote server. psql variable substitution
-    # doesn't expand inside \copy, so interpolate the path at the shell level.
+    # Use client-side \copy so HITS_TSV is read by the local psql process
+    # running this benchmark script. psql variable substitution does not
+    # expand inside \copy, so interpolate the path at the shell level.
     time "${PSQL[@]}" -c "\\copy hits FROM '${HITS_TSV}' DELIMITER E'\t' CSV;"
 else
     echo "Reusing existing hits table ($existing_rows rows); set CLEAN_RUN_DIR=1 to force reload."

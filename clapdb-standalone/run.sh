@@ -24,20 +24,28 @@ while read -r query; do
         START_TIME=$(date +%s.%N)
         OUTPUT=$(psql -h "$CLAPDB_HOST" -p "$CLAPDB_PORT" -U "$USERNAME" -d "$CLAPDB_DATABASE" \
             -c "\\timing" -c "$query" 2>&1)
+        PSQL_STATUS=$?
         END_TIME=$(date +%s.%N)
 
-        # Try to extract time from psql output
-        TIME_MS=$(echo "$OUTPUT" | grep -oP 'Time: \K[0-9.]+' | tail -1)
+        RES=""
+        if [[ $PSQL_STATUS -eq 0 ]]; then
+            # Try to extract time from psql output
+            TIME_MS=$(echo "$OUTPUT" | grep -oP 'Time: \K[0-9.]+' | tail -1)
 
-        if [[ -n "$TIME_MS" ]]; then
-            # Convert ms to seconds
-            RES=$(echo "scale=3; $TIME_MS / 1000" | bc)
-        else
-            # Fallback: calculate from wall clock time
-            RES=$(echo "scale=3; $END_TIME - $START_TIME" | bc)
+            if [[ -n "$TIME_MS" ]]; then
+                # Convert ms to seconds
+                RES=$(echo "scale=3; $TIME_MS / 1000" | bc)
+            else
+                # Fallback: calculate from wall clock time
+                RES=$(echo "scale=3; $END_TIME - $START_TIME" | bc)
+            fi
         fi
 
-        if [[ -n "$RES" && "$OUTPUT" != *"ERROR"* ]]; then
+        # Treat any non-zero psql exit, server-side ERROR/FATAL, or psql's
+        # own connection/auth diagnostics as a failed attempt — otherwise
+        # wall-clock fallback records dead connections as successful timings.
+        if [[ $PSQL_STATUS -eq 0 && -n "$RES" && "$OUTPUT" != *"ERROR"* \
+              && "$OUTPUT" != *"FATAL"* && "$OUTPUT" != *"psql: error:"* ]]; then
             echo -n "${RES}"
             echo "${QUERY_NUM},${i},${RES}" >> result.csv
         else
