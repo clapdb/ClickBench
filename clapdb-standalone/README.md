@@ -7,6 +7,7 @@ Run the ClickBench benchmark against a ClapDB standalone server.
 - ClapDB built with the `clapdb_standalone` target (release mode recommended); the server auto-bootstraps an empty data directory on first launch, so no separate `clapdb_initdb` step is required
 - `psql` PostgreSQL client
 - `wget`, `gzip` for downloading the dataset
+- `bc` for timing conversion in `run.sh` (or an equivalent calculator utility if you adapt the script)
 
 ## Build ClapDB
 

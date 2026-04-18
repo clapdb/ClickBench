@@ -217,16 +217,22 @@ else
     # Use client-side \copy so HITS_TSV is read by the local psql process
     # running this benchmark script. Run create.sql and \copy in the same
     # psql invocation under --single-transaction so a failed load does not
-    # leave a half-populated `hits` behind. psql variable substitution does
-    # not expand inside \copy, so interpolate the path at the shell level.
-    # Use PostgreSQL text format (default) to match the ClickBench TSV
-    # layout: it honours \N as NULL and avoids the CSV quoting/escape
-    # differences that other Postgres-wire drivers in this repo already
-    # side-step.
-    time "${PSQL[@]}" --single-transaction \
+    # leave a half-populated `hits` behind. -v ON_ERROR_STOP=1 + -X make
+    # SQL errors surface as a non-zero exit status (and ignore ~/.psqlrc
+    # for reproducibility), so a failed/partial load can never write the
+    # success marker. psql variable substitution does not expand inside
+    # \copy, so interpolate the path at the shell level. Use PostgreSQL
+    # text format (default) to match the ClickBench TSV layout: it honours
+    # \N as NULL and avoids the CSV quoting/escape differences that other
+    # Postgres-wire drivers in this repo already side-step.
+    if time "${PSQL[@]}" -X -v ON_ERROR_STOP=1 --single-transaction \
         -f "${SCRIPT_DIR}/create.sql" \
-        -c "\\copy hits FROM '${HITS_TSV}' WITH (FORMAT text, DELIMITER E'\t');"
-    : > "$HITS_LOAD_MARKER"
+        -c "\\copy hits FROM '${HITS_TSV}' WITH (FORMAT text, DELIMITER E'\t');"; then
+        : > "$HITS_LOAD_MARKER"
+    else
+        echo "Error: failed to create or load public.hits; not writing success marker." >&2
+        exit 1
+    fi
 fi
 
 # ── Restart for cold cache ────────────────────────────────────

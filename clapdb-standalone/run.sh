@@ -10,6 +10,15 @@ PASSWORD="${PASSWORD:-admin}"
 
 export PGPASSWORD="$PASSWORD"
 
+# Fail fast if \`bc\` isn't installed: we use it to normalise psql's \timing
+# output to seconds and silent \`null\` rows would otherwise be the only
+# signal that it's missing.
+if ! command -v bc >/dev/null 2>&1; then
+    echo "Error: 'bc' is required for timing normalisation but was not found on PATH." >&2
+    echo "Install bc (e.g. 'apt-get install bc' or 'dnf install bc') and retry." >&2
+    exit 1
+fi
+
 QUERY_NUM=1
 echo "query_num,try,execution_time" > result.csv
 
@@ -19,18 +28,18 @@ while read -r query; do
 
     echo -n "["
     for i in $(seq 1 $TRIES); do
-        # Run query and extract timing
-        # psql with \timing returns "Time: XXX.XXX ms"
-        START_TIME=$(date +%s.%N)
+        # Run query and extract timing. We only keep psql's \timing output
+        # ("Time: <n> ms|s"); wall-clock fallback was intentionally removed
+        # in an earlier revision because it conflated connection overhead
+        # and, worse, masked dead-server retries as legitimate timings.
         # -X skips ~/.psqlrc for reproducibility; -v ON_ERROR_STOP=1 makes
-        # server-side SQL errors surface as a non-zero psql exit status so we
-        # don't have to scrape OUTPUT for "ERROR"/"FATAL" substrings (which
-        # can also appear inside legitimate result rows).
+        # server-side SQL errors surface as a non-zero psql exit status so
+        # we don't have to scrape OUTPUT for "ERROR"/"FATAL" substrings
+        # (which can also appear inside legitimate result rows).
         OUTPUT=$(psql -X -v ON_ERROR_STOP=1 \
             -h "$CLAPDB_HOST" -p "$CLAPDB_PORT" -U "$USERNAME" -d "$CLAPDB_DATABASE" \
             -c "\\timing" -c "$query" 2>&1)
         PSQL_STATUS=$?
-        END_TIME=$(date +%s.%N)
 
         RES=""
         if [[ $PSQL_STATUS -eq 0 ]]; then
