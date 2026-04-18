@@ -29,8 +29,13 @@ while read -r query; do
 
         RES=""
         if [[ $PSQL_STATUS -eq 0 ]]; then
-            # Try to extract time from psql output
-            TIME_MS=$(echo "$OUTPUT" | grep -oP 'Time: \K[0-9.]+' | tail -1)
+            # Try to extract time from psql output. grep -oE + sed keeps this
+            # portable (avoids PCRE \K, which needs -P and isn't available on
+            # e.g. BusyBox grep).
+            TIME_MS=$(echo "$OUTPUT" \
+                | grep -oE 'Time: [0-9]+\.[0-9]+ ms' \
+                | tail -1 \
+                | sed -E 's/^Time: ([0-9]+\.[0-9]+) ms$/\1/')
 
             if [[ -n "$TIME_MS" ]]; then
                 # Convert ms to seconds

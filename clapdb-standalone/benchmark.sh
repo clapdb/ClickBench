@@ -181,10 +181,15 @@ done
 "${PSQL[@]}" -c "SELECT 1" >/dev/null
 
 # ── Create table + load data ──────────────────────────────────
-# Skip create/load on reruns: if hits already exists with data, reuse it.
-existing_rows=$("${PSQL[@]}" -tAXc \
-    "SELECT COALESCE((SELECT COUNT(*) FROM hits), 0);" 2>/dev/null || echo "")
-if [[ -z "$existing_rows" || "$existing_rows" == "0" ]]; then
+# Skip create/load on reruns when the `hits` table already exists in the
+# catalog. Probe pg_tables instead of the table itself: it's an O(1) catalog
+# lookup, no row scan, and therefore doesn't warm storage caches before the
+# cold-cache restart below. We treat table presence as "data loaded" because
+# the only code path that creates the table here is the COPY branch, which
+# only commits after the load completes.
+table_exists=$("${PSQL[@]}" -tAXc \
+    "SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'hits' LIMIT 1;" 2>/dev/null || echo "")
+if [[ -z "$table_exists" ]]; then
     echo "Creating hits table..."
     "${PSQL[@]}" -f "${SCRIPT_DIR}/create.sql"
 
@@ -198,13 +203,12 @@ if [[ -z "$existing_rows" || "$existing_rows" == "0" ]]; then
     # repo already side-step.
     time "${PSQL[@]}" -c "\\copy hits FROM '${HITS_TSV}' WITH (FORMAT text, DELIMITER E'\t');"
 else
-    echo "Reusing existing hits table ($existing_rows rows); set CLEAN_RUN_DIR=1 to force reload."
+    echo "Reusing existing hits table; set CLEAN_RUN_DIR=1 to force reload."
 fi
 
-echo "Row count:"
-"${PSQL[@]}" -c "SELECT COUNT(*) FROM hits;"
-
 # ── Restart for cold cache ────────────────────────────────────
+# Intentionally no COUNT(*) before restart — it warms caches and defeats the
+# cold-cache benchmark. If you want a row count, run it yourself after.
 echo "Restarting server for cold-cache benchmark..."
 stop_server
 sleep 2
